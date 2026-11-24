@@ -1,0 +1,9 @@
+discord.py==2.7.1
+aiosqlite==0.22.1
+psycopg[binary]==3.2.10
+aiohttp==3.14.5
+python-dotenv==1.2.4
+python-dateutil==2.9.0.post0
+Pillow==13.0.0
+PyYAML==6.0.3
+pytest==9.1.1

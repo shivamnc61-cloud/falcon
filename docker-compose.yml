@@ -1,0 +1,89 @@
+x-falcon-bot: &falcon-bot
+  build: .
+  env_file:
+    - .env
+  environment: &falcon-bot-environment
+    CLUSTER_COUNT: "11"
+    SHARD_COUNT: "11"
+    DATABASE_URL: postgresql://${POSTGRES_USER:-falcon}:${POSTGRES_PASSWORD_URLENC:-${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}}@postgres:5432/${POSTGRES_DB:-falcon}
+  depends_on:
+    postgres:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-falcon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-falcon}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - falcon-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  bot-0:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "0"
+  bot-1:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "1"
+  bot-2:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "2"
+  bot-3:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "3"
+  bot-4:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "4"
+  bot-5:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "5"
+  bot-6:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "6"
+  bot-7:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "7"
+  bot-8:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "8"
+  bot-9:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "9"
+  bot-10:
+    <<: *falcon-bot
+    environment:
+      <<: *falcon-bot-environment
+      CLUSTER_ID: "10"
+
+volumes:
+  falcon-postgres-data:

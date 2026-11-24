@@ -1,0 +1,48 @@
+tempvoice:
+  default_channel_name: "{display_name}'s room"
+  default_user_limit: 0
+  default_bitrate_kbps: 64
+  default_region: auto
+  auto_delete_empty: true
+  ownership_transfer_policy: claim_after_owner_leaves
+  claim_timeout_seconds: 0
+  auto_transfer_owner: false
+  staff_role_ids: []
+  allowed_controls:
+    - lock
+    - unlock
+    - hide
+    - unhide
+    - rename
+    - limit
+    - bitrate
+    - region
+    - status
+    - permit
+    - allow
+    - reject
+    - trust
+    - untrust
+    - block
+    - unblock
+    - kick
+    - mute
+    - unmute
+    - deafen
+    - undeafen
+    - transfer
+    - claim
+    - invite
+    - summon
+    - openchat
+    - closechat
+    - delete
+    - reset
+    - refresh
+    - clear
+  creation_cooldown_seconds: 5
+  max_temp_channels_per_guild: 50
+  audit_logging: true
+  theme:
+    embed_color: ffdd00
+  localization: en
