@@ -49,10 +49,10 @@ PostgreSQL data is stored in the `falcon-postgres-data` volume. Do not use `dock
 
 ## Run locally
 
-Use Python 3.11 or newer. Copy `.env.example` to `.env`, set `DISCORD_TOKEN`, and choose a database:
+Use Python 3.11 for local development; the Docker image uses Python 3.14. Copy `.env.example` to `.env`, set `DISCORD_TOKEN`, and choose a database:
 
 - **SQLite:** set `DATABASE_URL=` (empty). Falcon uses `DATABASE_PATH`, which defaults to `data/falcon_data.db`.
-- **PostgreSQL:** start the database with `docker compose up -d postgres`, then set `DATABASE_URL` to a PostgreSQL URL pointing at `localhost` with the same credentials as `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in `.env`.
+- **PostgreSQL:** start the database with `docker compose up -d postgres`, then set `DATABASE_URL` to a PostgreSQL URL pointing at `localhost` with the same credentials as `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in `.env`. URL-encode reserved characters in the URL password.
 
 Install dependencies and run the bot:
 
@@ -77,7 +77,7 @@ The main settings are in `.env`; non-secret temporary voice defaults are in [con
 | `DATABASE_PATH` | SQLite file path; defaults to `data/falcon_data.db` |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | PostgreSQL credentials used by Compose |
 | `POSTGRES_PASSWORD_URLENC` | Optional URL-encoded password for Compose when the password contains reserved characters |
-| `OWNER_IDS` | Comma-separated bot owner IDs |
+| `OWNER_IDS`, `PRIMARY_OWNER_ID` | Bot owner IDs |
 | `SUPPORT_SERVER_URL` | Support-server link used by premium messages |
 | `GIPHY_API_KEY` | Optional key for GIF and sticker commands |
 | `AUTO_UPLOAD_EMOJIS` | Set to `true` to enable application emoji synchronization |
@@ -134,7 +134,11 @@ Railway's PostgreSQL service persists data across deployments. Scaling a single 
 ## Troubleshooting
 
 - **Docker dependency install times out:** the Docker build uses the Tsinghua PyPI mirror by default. Set `PIP_INDEX_URL` to another reachable Python package index and rebuild with `docker compose up -d --build`.
-- **Invalid Discord token:** create or reset the token in the Developer Portal, update `DISCORD_TOKEN`, then recreate the bot containers.
+- **Invalid Discord token:** create or reset the token in the Developer Portal, update `DISCORD_TOKEN`, then recreate the bot workers:
+
+  ```bash
+  docker compose up -d --force-recreate bot-0 bot-1 bot-2 bot-3 bot-4 bot-5 bot-6 bot-7 bot-8 bot-9 bot-10
+  ```
 - **Prefix commands do not respond:** check the configured prefix, enable Message Content Intent, and make sure the bot can read and reply in the channel.
 - **PostgreSQL connection fails:** Compose workers use the `postgres` service name automatically. A local `python main.py` process should connect to PostgreSQL through `localhost`.
 
