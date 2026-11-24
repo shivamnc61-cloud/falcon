@@ -266,6 +266,12 @@ def _manifest_emoji(name, fallback):
     return value if isinstance(value, str) else fallback
 
 
+def _manifest_alias_emoji(name, fallback):
+    aliases = EMOJI_MANIFEST.get("aliases", {})
+    value = aliases.get(name) if isinstance(aliases, dict) else None
+    return value if isinstance(value, str) else fallback
+
+
 GLOBAL_HELP_EMOJI_KEYS = [
     "fp_premium", "fp_invite", "ms", "vc", "fp_premium", "lb", "tada",
     "timer", "wlcm", "mods", "fp_invite", "polls", "utlity", "support",
@@ -588,23 +594,20 @@ class FalconBot(commands.AutoShardedBot):
                 await self.db.execute(f"ALTER TABLE users ADD COLUMN {column} {declaration}")
 
         await self.db.execute("CREATE TABLE IF NOT EXISTS giveaways (msg_id INTEGER PRIMARY KEY, forced_winner INTEGER, prize TEXT, host_id INTEGER, winners INTEGER DEFAULT 1)")
-        try:
-            await self.db.execute("ALTER TABLE giveaways ADD COLUMN winners INTEGER DEFAULT 1")
-            await self.db.commit()
-        except Exception:
-            pass
+        async with self.db.execute("PRAGMA table_info(giveaways)") as cursor:
+            giveaway_columns = {row[1] for row in await cursor.fetchall()}
         for column, declaration in (
+            ("winners", "INTEGER DEFAULT 1"),
             ("guild_id", "INTEGER"),
             ("channel_id", "INTEGER"),
             ("announcement_msg_id", "INTEGER"),
             ("ends_at", "TEXT"),
             ("active", "INTEGER NOT NULL DEFAULT 1"),
         ):
-            try:
+            if column not in giveaway_columns:
                 await self.db.execute(f"ALTER TABLE giveaways ADD COLUMN {column} {declaration}")
-                await self.db.commit()
-            except Exception:
-                pass
+                giveaway_columns.add(column)
+        await self.db.commit()
         await self.db.execute(
             "CREATE TABLE IF NOT EXISTS giveaway_settings ("
             "guild_id INTEGER PRIMARY KEY, winner_role_id INTEGER, bypass_role_id INTEGER, "
@@ -6830,7 +6833,7 @@ HELP_SECTIONS = {
         "contact": True,
     },
     "voice_rooms": {
-        "emoji": _manifest_emoji("help_voice_rooms", "<:fp_invite:1551879046722359417>"),
+        "emoji": _manifest_alias_emoji("invites", "<:fp_invite:1551879046722359417>"),
         "label": "Voice Rooms",
         "title": "Temporary Voice Rooms",
         "description": (
@@ -6866,7 +6869,7 @@ HELP_SECTIONS = {
 
 HELP_SECTIONS.update({
     "reference_automation": {
-        "emoji": _manifest_emoji("help_automation", "<:mods:1551879061171736587>"),
+        "emoji": _manifest_alias_emoji("moderation", "<:mods:1551879061171736587>"),
         "label": "Automation",
         "title": "Server Automation",
         "description": "Schedule messages, reactions, bump reminders, and custom-status roles.",
@@ -6884,7 +6887,7 @@ HELP_SECTIONS.update({
         ],
     },
     "reference_utilities": {
-        "emoji": _manifest_emoji("help_more_utilities", "<:fp_invite:1551879046722359417>"),
+        "emoji": _manifest_alias_emoji("invites", "<:fp_invite:1551879046722359417>"),
         "label": "More Utilities",
         "title": "More Utilities",
         "description": "Conversions, search, data exports, and community commands.",
@@ -6902,7 +6905,7 @@ HELP_SECTIONS.update({
         ],
     },
     "reference_profiles": {
-        "emoji": _manifest_emoji("help_profiles", "<:polls:1551879063248044104>"),
+        "emoji": _manifest_alias_emoji("poll", "<:polls:1551879063248044104>"),
         "label": "Profiles",
         "title": "Member Profiles",
         "description": "Personalize a profile with a bio, background, and social links.",

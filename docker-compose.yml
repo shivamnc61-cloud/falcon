@@ -1,5 +1,5 @@
 x-falcon-bot: &falcon-bot
-  build: .
+  image: falcon-bot:local
   env_file:
     - .env
   environment: &falcon-bot-environment
@@ -31,6 +31,10 @@ services:
 
   bot-0:
     <<: *falcon-bot
+    build:
+      context: .
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
     environment:
       <<: *falcon-bot-environment
       CLUSTER_ID: "0"

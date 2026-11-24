@@ -1,63 +1,148 @@
 # Falcon Premium Bot
 
-Falcon is an asynchronous Discord bot built with discord.py. It supports self-hosted PostgreSQL and can continue using SQLite when `DATABASE_URL` is empty.
+Falcon is a Discord bot built with `discord.py`. It includes moderation, invite and activity tracking, temporary voice rooms, premium features, and community tools.
+
+## Quick start: Docker Compose
+
+Docker Compose is the recommended setup. It runs PostgreSQL and 11 bot workers, with each worker handling one gateway shard.
+
+### 1. Get the code and configure the bot
+
+```bash
+git clone https://github.com/shivamnc61-cloud/falcon.git
+cd falcon
+cp .env.example .env
+```
+
+Edit `.env` and set at least:
+
+```dotenv
+DISCORD_TOKEN=your-discord-bot-token
+POSTGRES_PASSWORD=use-a-strong-password
+```
+
+Keep `.env` private. Do not commit or share your Discord token, database password, or API keys. If the PostgreSQL password contains URL-reserved characters, set `POSTGRES_PASSWORD_URLENC` to its percent-encoded form too.
+
+### 2. Enable Discord intents
+
+In the Discord Developer Portal, enable **Server Members Intent** and **Message Content Intent** for the application. Give the bot only the server permissions needed for the features you plan to use. Common permissions include View Channels, Send Messages, Embed Links, Read Message History, Manage Channels, Manage Roles, and Move Members. Moderation features may also require Kick Members, Ban Members, or Moderate Members.
+
+### 3. Build and start
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f bot-0
+```
+
+The image uses the Tsinghua PyPI mirror by default. To use another compatible package index, set `PIP_INDEX_URL` in `.env` or the shell before building.
+
+Useful lifecycle commands:
+
+```bash
+docker compose stop       # Stop services without removing containers or data
+docker compose start      # Start them again
+docker compose down       # Remove containers and network; keep the database volume
+```
+
+PostgreSQL data is stored in the `falcon-postgres-data` volume. Do not use `docker compose down -v` unless you intend to delete that database data.
 
 ## Run locally
 
-1. Copy `.env.example` to `.env`, set `DISCORD_TOKEN`, and replace the example PostgreSQL password.
-2. Start the database with `docker compose up -d postgres`.
-3. Install dependencies with `python -m pip install -r requirements.txt`, then run `python main.py`.
+Use Python 3.11 or newer. Copy `.env.example` to `.env`, set `DISCORD_TOKEN`, and choose a database:
 
-`DATABASE_URL` selects PostgreSQL (for example, `postgresql://falcon:your-password@localhost:5432/falcon`). Leave it blank to use the SQLite file configured by `DATABASE_PATH`. PostgreSQL tables are initialized by the bot on startup; no manual migration command is required. Existing SQLite data stays in the SQLite database and is not copied automatically to PostgreSQL. When the current SQLite schema is upgraded, pre-isolation member statistics and invite records are retained in `users_legacy` and `invite_tracker_legacy`; new guild-scoped statistics start fresh. Guild-specific configuration, invite records, and member statistics are scoped by Discord guild ID.
+- **SQLite:** set `DATABASE_URL=` (empty). Falcon uses `DATABASE_PATH`, which defaults to `data/falcon_data.db`.
+- **PostgreSQL:** start the database with `docker compose up -d postgres`, then set `DATABASE_URL` to a PostgreSQL URL pointing at `localhost` with the same credentials as `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in `.env`.
 
-The Compose file binds PostgreSQL to localhost and stores its data in the persistent `falcon-postgres-data` volume. Keep the real `.env` file private and use a strong password when exposing PostgreSQL beyond your local machine.
+Install dependencies and run the bot:
 
-## Run 11 clustered workers with Docker Compose
-
-Set `DISCORD_TOKEN` and the PostgreSQL credentials in `.env`, then run:
-
-```sh
-docker compose up --build -d
+```bash
+python -m pip install -r requirements.txt
+python main.py
 ```
 
-Compose starts PostgreSQL and 11 bot workers, with each worker owning one of the 11 gateway shards. The workers share the Compose PostgreSQL service; the bot coordinates schema setup and gateway identify starts through PostgreSQL advisory locks. Clustered workers skip the per-process `/gateway/bot` limit lookup because their identifies are already serialized through PostgreSQL. If `POSTGRES_PASSWORD` contains URL-reserved characters, set `POSTGRES_PASSWORD_URLENC` to its percent-encoded form as well. To stop the bot workers while keeping the database, run `docker compose stop bot-0 bot-1 bot-2 bot-3 bot-4 bot-5 bot-6 bot-7 bot-8 bot-9 bot-10`.
+For a single local process, leave `CLUSTER_COUNT`, `CLUSTER_ID`, and `SHARD_COUNT` unset. Falcon defaults to 10 shards. Do not run a local process at the same time as the Compose cluster with the same bot token.
 
-For a single local process, keep `CLUSTER_COUNT` unset and run `python main.py`; it retains the existing 10-shard default.
+PostgreSQL tables are initialized automatically at startup. SQLite data is not copied to PostgreSQL automatically; choose one database before you start using the bot.
 
-## Deploy on Railway
+## Configuration
 
-Use one Railway bot service and Railway's managed PostgreSQL. The root [Dockerfile](./Dockerfile) is detected automatically; no local Docker host, Docker Compose file, web port, or deprecated `railway.json` is needed.
+The main settings are in `.env`; non-secret temporary voice defaults are in [config.yml](./config.yml).
 
-1. In Railway, create a project with **New Project → Deploy from GitHub repo**, then select `moonlight90100/falcon-2`.
-2. In that project, choose **New → Database → PostgreSQL**.
-3. Open the bot service's **Variables** and add:
-   - `DISCORD_TOKEN` — your Discord bot token.
-   - `DATABASE_URL` — a Railway reference to your PostgreSQL service, for example `${{ Postgres.DATABASE_URL }}`. Replace `Postgres` with the exact database service name.
-   - Optionally, `OWNER_IDS` and `SUPPORT_SERVER_URL`.
-4. Deploy the bot service. The Dockerfile runs `python main.py`; keep one replica and leave `CLUSTER_COUNT`, `CLUSTER_ID`, and `SHARD_COUNT` unset.
+| Variable | Purpose |
+| --- | --- |
+| `DISCORD_TOKEN` | Required Discord bot token |
+| `PREFIX` | Prefix for prefix commands; defaults to `,` |
+| `DATABASE_URL` | PostgreSQL URL; leave empty to use SQLite |
+| `DATABASE_PATH` | SQLite file path; defaults to `data/falcon_data.db` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | PostgreSQL credentials used by Compose |
+| `POSTGRES_PASSWORD_URLENC` | Optional URL-encoded password for Compose when the password contains reserved characters |
+| `OWNER_IDS` | Comma-separated bot owner IDs |
+| `SUPPORT_SERVER_URL` | Support-server link used by premium messages |
+| `GIPHY_API_KEY` | Optional key for GIF and sticker commands |
+| `AUTO_UPLOAD_EMOJIS` | Set to `true` to enable application emoji synchronization |
+| `PIP_INDEX_URL` | Optional Python package index override for Docker builds |
 
-Railway's PostgreSQL reference connects over its private network and persists data across bot redeploys. Don't set `DATABASE_URL` to `localhost` or the Compose hostname `postgres`, and don't import the example `DATABASE_URL` from `.env.example`; those addresses only work in their respective local environments. Scaling a single default bot service to multiple replicas will start duplicate workers, so keep it at one replica unless you configure a coordinated shard cluster.
+Compose sets the cluster variables and database URL for its 11 workers. Do not set `CLUSTER_COUNT`, `CLUSTER_ID`, or `SHARD_COUNT` for a normal single local process.
 
-## Premium server access
+## Command examples
 
-Only a Premium account can add Falcon. When Discord exposes the bot-add audit log, Falcon checks the installer and DMs them; if the log is unavailable, it falls back to checking and notifying the server owner. Servers that fail the check receive a Premium Required embed with a support-server button where Falcon has permission, the installer is DMed the same embed, and Falcon leaves. Set `SUPPORT_SERVER_URL` in `.env` so the button works. Discord does not allow the bot to join a human to another server automatically; they must click the button themselves.
+The default prefix is a comma. Replace it with your configured prefix if you changed `PREFIX`.
 
-Use `/premium gift @user` to transfer all of your active Premium allocations and guild activations. Your Premium access is removed after the transfer; `/premium gift` does not create free Premium.
+```text
+,help
+,invites [@member]
+,messages [@member]
+,vc [@member]
+,setprefix !
+,deleteprefix
+,voicehub setup
+,room info
+,rank [@member]
+,hug @member
+,search <query>
+/poll
+/premium gift @user
+/tempvoice setup
+```
 
-## Social GIF commands
+For a detailed command reference, see [COMPLETE_COMMANDS_LIST.md](./COMPLETE_COMMANDS_LIST.md). That reference uses `!` as a prefix placeholder in some sections; use the prefix configured for your bot.
 
-Use the bot prefix for interactions such as `,hug @user`, `,slap @user`, or `,kiss @user`. Replies to a member's message also work. Add `spam` before the target (for example, `,hug spam @user`) to repeat the action five times in one response. When `GIPHY_API_KEY` is configured, actions include G-rated GIPHY GIFs; without it, the text action still works without a GIF.
+### Temporary voice rooms
 
-## GIPHY commands
+Falcon supports join-to-create voice rooms, persistent owner controls, staff overrides, and backup/restore. See [TEMPVOICE_GUIDE.md](./TEMPVOICE_GUIDE.md) for setup steps, permissions, and the complete room command guide.
 
-Set `GIPHY_API_KEY` to use the direct commands `,search <query>`, `,trending [limit] [offset]`, `,random [tag]`, `,translate <phrase>`, `,get <id[,id...]>`, `,categories`, `,category <category> [limit] [offset]`, or `,category-tag <category> <tag> [limit] [offset]`. Use `,sticker <name>` to search animated stickers (`sticker-search` is an alias), or `,sticker-trending`, `,sticker-random`, and `,sticker-translate`. GIF result lists can be browsed with requester-only buttons. Results are restricted to G-rated content.
+### GIF and sticker commands
 
-## TempVoice
+Set `GIPHY_API_KEY` to enable GIPHY features. Examples include `,search <query>`, `,trending`, `,random [tag]`, `,sticker <name>`, and `,sticker-trending`. Results are restricted to G-rated content.
 
-Falcon includes Join-to-Create voice rooms, persistent owner controls, slash commands, staff overrides, multi-generator configuration, and JSON backup/restore.
+### Premium access
 
-See [TEMPVOICE_GUIDE.md](./TEMPVOICE_GUIDE.md) for Hindi setup, permissions, supported commands, and local, Railway, and Termux deployment notes.
+Only servers with active Premium can use Premium-gated features. `/premium gift @user` transfers your active Premium allocations and guild activations; it does not create free Premium.
 
-## Community features
+## Railway deployment
 
-The bot supports server-specific message prefixes with `,setprefix <prefix>` and `,deleteprefix`. Invite summaries distinguish fake accounts and returning members; configure the young-account threshold with `,setaltthreshold <days>`. Timers are persisted across restarts, greetings can auto-delete with `,greet delete-after <join|leave|both> <seconds>`, and `/poll` supports a private response visible only to its creator.
+Use one bot service and Railway's managed PostgreSQL:
+
+1. Deploy this repository from GitHub; Railway uses the root [Dockerfile](./Dockerfile).
+2. Add a PostgreSQL service to the project.
+3. Set `DISCORD_TOKEN` and `DATABASE_URL` in the bot service. Use Railway's reference to the PostgreSQL service URL, not `localhost` or the Compose hostname `postgres`.
+4. Keep one bot-service replica and leave the cluster variables unset.
+
+Railway's PostgreSQL service persists data across deployments. Scaling a single bot service to multiple replicas starts duplicate workers unless a coordinated shard cluster is configured.
+
+## Troubleshooting
+
+- **Docker dependency install times out:** the Docker build uses the Tsinghua PyPI mirror by default. Set `PIP_INDEX_URL` to another reachable Python package index and rebuild with `docker compose up -d --build`.
+- **Invalid Discord token:** create or reset the token in the Developer Portal, update `DISCORD_TOKEN`, then recreate the bot containers.
+- **Prefix commands do not respond:** check the configured prefix, enable Message Content Intent, and make sure the bot can read and reply in the channel.
+- **PostgreSQL connection fails:** Compose workers use the `postgres` service name automatically. A local `python main.py` process should connect to PostgreSQL through `localhost`.
+
+## Tests
+
+Run the test suite and compile the Python files with:
+
+```bash
+python -m pytest -q
+python -m compileall -q .
+```

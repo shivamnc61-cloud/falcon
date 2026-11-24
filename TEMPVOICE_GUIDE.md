@@ -87,4 +87,4 @@ python -m pytest tests/bot_smoke_test.py -q
 - **Tested locally:** the focused voice/TempVoice selection and the complete bot smoke-test file use mocked Discord interactions and APIs. Python compilation is also checked before packaging.
 - **Not integration-tested:** live Discord permission and role hierarchy behavior, publishing slash commands in a real guild, Discord API rate limits, Railway persistent-volume mounting, and Termux dependency installation. Test these in a separate server before production use.
 
-The ZIP deliverable contains the project source, tests, configuration template, and setup documentation. It intentionally excludes `.env` and SQLite database files; configure a fresh `.env` and persistent database path for each deployment.
+The repository contains the project source, tests, configuration template, and setup documentation. Keep `.env` and SQLite database files private, and configure a persistent database path for each deployment.
